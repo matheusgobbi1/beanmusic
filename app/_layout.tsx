@@ -10,6 +10,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // Criar uma instância do QueryClient
 const queryClient = new QueryClient();
 
+// Configurações estáveis para roteamento
+export const unstable_settings = {
+  initialRouteName: "(tabs)",
+};
+
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
@@ -53,7 +58,27 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="(campanhas)" />
+            <Stack.Screen
+              name="(campanhas)"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                animationDuration: 250,
+                gestureEnabled: true,
+                gestureDirection: "vertical",
+              }}
+            />
+            <Stack.Screen
+              name="blog/modal/[slug]"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                animationDuration: 250,
+                gestureEnabled: true,
+                gestureDirection: "vertical",
+                headerShown: false,
+              }}
+            />
             <Stack.Screen
               name="transacoes"
               options={{

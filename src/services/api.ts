@@ -8,6 +8,8 @@ import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+console.log("API_URL CARREGADA:", API_URL);
+
 // Defina uma interface para o erro de resposta da API se necessário
 interface ApiErrorResponse {
   message?: string;
@@ -108,13 +110,52 @@ export const campanhasAPI = {
   // Obter detalhes de uma campanha específica
   getCampaignDetails: async (campaignId: string) => {
     try {
-      const response = await api.get(`/me/campaigns/${campaignId}`);
-      return response.data;
-    } catch (error) {
-      console.error(
-        `Erro ao buscar detalhes da campanha ${campaignId}:`,
-        error
+      console.log(
+        `[API] Iniciando requisição para /me/campaigns/${campaignId}`
       );
+
+      const response = await api.get(`/me/campaigns/${campaignId}`);
+
+      console.log(`[API] Status da resposta: ${response.status}`);
+      console.log(
+        `[API] Resposta completa:`,
+        JSON.stringify(response.data, null, 2)
+      );
+
+      // Verificar e adaptar a estrutura da resposta se necessário
+      const data = response.data;
+
+      // Verificar se o formato das atividades está correto
+      if (data.atividades) {
+        console.log(
+          `[API] Formato das atividades recebidas:`,
+          JSON.stringify(data.atividades[0], null, 2)
+        );
+      }
+
+      // Verificar se o formato das playlists está correto
+      if (data.playlists) {
+        console.log(
+          `[API] Formato das playlists recebidas:`,
+          JSON.stringify(data.playlists[0], null, 2)
+        );
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(
+          `[API] Erro ao buscar detalhes da campanha ${campaignId}: ${error.message}`,
+          error
+        );
+      } else {
+        console.error(
+          `[API] Erro desconhecido ao buscar detalhes da campanha ${campaignId}`,
+          error
+        );
+      }
+
+      // Relançar o erro para ser tratado pelo componente
       throw error;
     }
   },
@@ -126,6 +167,65 @@ export const campanhasAPI = {
       return response.data;
     } catch (error) {
       console.error("Erro ao criar campanha:", error);
+      throw error;
+    }
+  },
+};
+
+// Funções relacionadas ao Blog
+export const blogAPI = {
+  // Obter uma notícia específica pelo slug
+  getNoticiaBySlug: async (slug: string) => {
+    try {
+      console.log(`[API] Iniciando requisição para /blog/${slug}`);
+      const response = await api.get(`/blog/${slug}`);
+      console.log(`[API] Status da resposta: ${response.status}`);
+      console.log(
+        `[API] Resposta completa:`,
+        JSON.stringify(response.data, null, 2)
+      );
+      return response.data; // Assumindo que a API retorna diretamente o objeto da notícia
+    } catch (error) {
+      // O interceptor de resposta global já deve lidar com erros comuns (como 401)
+      // Aqui, podemos logar o erro específico desta chamada
+      if (error instanceof Error) {
+        console.error(
+          `[API] Erro ao buscar notícia com slug ${slug}: ${error.message}`,
+          error
+        );
+      } else {
+        console.error(
+          `[API] Erro desconhecido ao buscar notícia com slug ${slug}`,
+          error
+        );
+      }
+      throw error; // Relançar o erro para ser tratado pelo componente que fez a chamada
+    }
+  },
+  // Obter todas as notícias
+  getTodasNoticias: async () => {
+    try {
+      console.log("[API] Iniciando requisição para /blog (todas as notícias)");
+      const response = await api.get("/blog");
+      console.log(`[API] Status da resposta: ${response.status}`);
+      // Assumindo que a API retorna um array de notícias
+      // console.log(
+      //   `[API] Resposta completa (todas as notícias):`,
+      //   JSON.stringify(response.data, null, 2)
+      // );
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(
+          `[API] Erro ao buscar todas as notícias: ${error.message}`,
+          error
+        );
+      } else {
+        console.error(
+          `[API] Erro desconhecido ao buscar todas as notícias`,
+          error
+        );
+      }
       throw error;
     }
   },

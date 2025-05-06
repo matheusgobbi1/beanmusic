@@ -63,6 +63,19 @@ export default function Campanhas() {
 
   // Mapeamento de status do backend para o formato do componente
   const mapearStatus = (status: string): CampanhaStatus => {
+    if (!status) return "pending";
+
+    // Extrair o texto do status se vier em formato HTML
+    const statusTexto = status.toLowerCase();
+
+    if (statusTexto.includes("finalizada")) return "completed";
+    if (statusTexto.includes("ativa") || statusTexto.includes("em andamento"))
+      return "active";
+    if (statusTexto.includes("pendente") || statusTexto.includes("aguardando"))
+      return "pending";
+    if (statusTexto.includes("recusada") || statusTexto.includes("rejeitada"))
+      return "rejected";
+
     switch (status) {
       case "active":
         return "active";
@@ -139,15 +152,12 @@ export default function Campanhas() {
         size={80}
         color={colors.primary.main}
       />
+      <Text style={styles.emptyTitle}>Nenhuma Campanha Encontrada</Text>
       <Text style={styles.emptyText}>
-        Nenhuma campanha disponível no momento
+        Clique no botão{" "}
+        <Ionicons name="add-circle" size={16} color={colors.text.secondary} />{" "}
+        abaixo para criar sua primeira campanha.
       </Text>
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={handleCriarCampanha}
-      >
-        <Text style={styles.createButtonText}>Criar Campanha</Text>
-      </TouchableOpacity>
     </View>
   );
 
@@ -237,12 +247,20 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 40,
   },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: colors.text.primary,
+    marginTop: 24,
+    textAlign: "center",
+  },
   emptyText: {
     fontSize: 16,
     color: colors.text.secondary,
-    marginTop: 16,
+    marginTop: 12,
     textAlign: "center",
     marginBottom: 24,
+    paddingHorizontal: 32,
   },
   createButton: {
     backgroundColor: colors.primary.main,

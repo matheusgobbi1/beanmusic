@@ -108,6 +108,19 @@ export default function Home() {
 
   // Mapeamento de status do backend para o formato do componente
   const mapearStatus = (status: string): CampanhaStatus => {
+    if (!status) return "pending";
+
+    // Extrair o texto do status se vier em formato HTML
+    const statusTexto = status.toLowerCase();
+
+    if (statusTexto.includes("finalizada")) return "completed";
+    if (statusTexto.includes("ativa") || statusTexto.includes("em andamento"))
+      return "active";
+    if (statusTexto.includes("pendente") || statusTexto.includes("aguardando"))
+      return "pending";
+    if (statusTexto.includes("recusada") || statusTexto.includes("rejeitada"))
+      return "rejected";
+
     switch (status) {
       case "active":
         return "active";

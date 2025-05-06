@@ -8,7 +8,12 @@ import { CampanhaProvider } from "../../src/contexts/CampanhaContext";
 export default function CampanhasLayout() {
   return (
     <CampanhaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        {/* Telas normais de fluxo */}
         <Stack.Screen
           name="spotify/index"
           options={{ title: "Campanha Spotify" }}
@@ -35,6 +40,20 @@ export default function CampanhasLayout() {
           options={{ title: "Resumo do Pagamento" }}
         />
         <Stack.Screen name="pix-qrcode" options={{ title: "Pagamento PIX" }} />
+
+        {/* Modal de detalhes da campanha */}
+        <Stack.Screen
+          name="detalhes/[id]"
+          options={{
+            title: "Detalhes da Campanha",
+            presentation: "transparentModal",
+            animation: "slide_from_bottom",
+            animationDuration: 250,
+            gestureEnabled: true,
+            gestureDirection: "vertical",
+            fullScreenGestureEnabled: true,
+          }}
+        />
       </Stack>
     </CampanhaProvider>
   );

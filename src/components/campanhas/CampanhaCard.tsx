@@ -89,7 +89,14 @@ const CampanhaCard = ({
     : date;
 
   const handlePress = () => {
-    router.push(`/campanhas/${id}`);
+    // Navegar para o modal de detalhes da campanha apenas com o ID
+    router.navigate({
+      pathname: "/(campanhas)/detalhes/[id]",
+      params: {
+        id,
+        modal: "true",
+      },
+    });
   };
 
   return (
@@ -297,7 +304,7 @@ const styles = StyleSheet.create({
   },
   gradient: {
     position: "absolute",
-    left:0,
+    left: 0,
     right: 0,
     top: -40,
     height: 140,

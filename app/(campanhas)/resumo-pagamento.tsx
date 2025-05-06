@@ -16,6 +16,9 @@ import { useCampanha } from "../../src/contexts/CampanhaContext";
 import Button from "../../src/components/common/Button";
 import colors from "../../src/constants/colors";
 import { campanhasAPI } from "../../src/services/api";
+import axios from "axios";
+import * as SecureStore from "expo-secure-store";
+import { API_URL } from "@env";
 
 export default function ResumoPagamentoScreen() {
   const router = useRouter();
@@ -78,33 +81,64 @@ export default function ResumoPagamentoScreen() {
     try {
       setLoading(true);
 
-      // Preparar os dados da campanha
-      const campanhaData = {
+      // Obter token de autenticação
+      const token = await SecureStore.getItemAsync("userToken");
+      if (!token) {
+        Alert.alert("Erro", "Você precisa estar autenticado para continuar.");
+        setLoading(false);
+        return;
+      }
+
+      // Preparar os dados da campanha - Simplificando para corresponder ao exemplo anterior
+      const requestData = {
+        budget: total, // Valor total com taxa
         platform,
         track_id: selectedTrack?.id,
         track_name: getTrackName(),
         artist_name: getArtistName(),
-        image: getAlbumImage(),
-        budget: total, // Valor total com taxa
         target_options: targetOptions,
         observation,
-        payment_method: "pix",
       };
 
-      // Chamar a API para criar a campanha
-      const response = await campanhasAPI.createCampaign(campanhaData);
+      // Chamada direta à API usando axios em vez de utilizar a campanhasAPI
+      const response = await axios.post(`${API_URL}/campaigns`, requestData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      console.log("Resposta da API (Campanha criada):", response.data);
+
+      // Verificar estrutura da resposta para obter dados do QR code
+      const responseData = response.data.data || response.data;
+      const qrCodeImage = responseData?.payment?.method?.qrcode;
+      const qrCodeText = responseData?.payment?.method?.qrcode_text;
+      const campaignId = responseData?.id;
+
+      if (!qrCodeImage || !qrCodeText) {
+        throw new Error("QR Code não disponível na resposta da API.");
+      }
 
       // Navegar para a tela do QR Code com os dados retornados
       router.push({
         pathname: "/(campanhas)/pix-qrcode",
         params: {
-          qrCodeImage: response.data.payment.method.qrcode,
-          qrCodeText: response.data.payment.method.qrcode_text,
-          campaignId: response.data.id,
+          qrCodeImage,
+          qrCodeText,
+          campaignId,
         },
       });
     } catch (error) {
       console.error("Erro ao criar campanha:", error);
+
+      // Log detalhado para diagnóstico
+      if (axios.isAxiosError(error)) {
+        console.error("Detalhes do erro:", {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers,
+          config: error.config,
+        });
+      }
+
       Alert.alert(
         "Erro",
         "Não foi possível criar a campanha. Por favor, tente novamente."
