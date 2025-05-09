@@ -100,7 +100,7 @@ export default function ResumoPagamentoScreen() {
         observation,
       };
 
-      // Chamada direta à API usando axios em vez de utilizar a campanhasAPI
+      // Chamada direta à API usando axios 
       const response = await axios.post(`${API_URL}/campaigns`, requestData, {
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
   },
   mediumButton: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 9999,
   },

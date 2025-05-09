@@ -5,15 +5,15 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ImageBackground,
 } from "react-native";
+import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { blogAPI } from "../../services/api";
 import colors from "../../constants/colors";
-import { router } from "expo-router"; // Para navegação ao clicar
-import NoticiaSkeleton from "./NoticiaSkeleton"; // Importa o Skeleton
+import { router } from "expo-router";
+import NoticiaSkeleton from "./NoticiaSkeleton";
 
 // Interface ajustada para corresponder à API de beanmusicpromotion.com/api/v1/blog
 interface NoticiaResumo {
@@ -25,6 +25,10 @@ interface NoticiaResumo {
   image: string; // Mapeia para o nosso 'imagemUrl'
   // body_output é null, então não incluímos a menos que necessário
 }
+
+const imagePlaceholder = colors.neutral.medium; // Placeholder para expo-image
+const IMAGE_HEIGHT = 280;
+const MASKED_VIEW_HEIGHT = IMAGE_HEIGHT * 0.6; // 60% da altura da imagem para a área de efeito
 
 const renderNoticiaItem = ({ item }: { item: NoticiaResumo }) => {
   const handlePress = () => {
@@ -45,40 +49,53 @@ const renderNoticiaItem = ({ item }: { item: NoticiaResumo }) => {
   return (
     <TouchableOpacity style={styles.itemContainer} onPress={handlePress}>
       {item.image ? (
-        <ImageBackground
-          source={{ uri: item.image }}
-          style={styles.itemImagem}
-          resizeMode="cover"
-        >
-          <MaskedView
-            style={styles.maskedViewArea}
-            maskElement={
-              <LinearGradient
-                colors={["transparent", "black", "black"]}
-                locations={[0, 0.4, 1]}
-                style={{ flex: 1 }}
-              />
-            }
-          >
-            <BlurView style={styles.blurContent} tint="dark" intensity={80}>
-              <View style={styles.textContentWrapper}>
-                <Text style={styles.itemTitulo}>{item.title_limit}</Text>
-                <Text
-                  style={styles.itemResumo}
-                  numberOfLines={2}
-                  ellipsizeMode="tail"
-                >
-                  {item.subtitle}
-                </Text>
-                {item.posted_at && (
-                  <Text style={styles.itemData}>{item.posted_at}</Text>
-                )}
-              </View>
-            </BlurView>
-          </MaskedView>
-        </ImageBackground>
+        <View style={styles.imageWrapper}>
+          <Image
+            source={{ uri: item.image }}
+            style={styles.itemImagemExpo}
+            placeholder={imagePlaceholder}
+            transition={300}
+            contentFit="cover"
+          />
+          <View style={styles.overlayEffectHolderContainer}>
+            <View style={styles.effectHolder}>
+              <MaskedView
+                style={StyleSheet.absoluteFill} // MaskedView preenche o effectHolder
+                maskElement={
+                  <LinearGradient
+                    colors={["transparent", "black", "black"]} // Fade de transparente para opaco
+                    locations={[0, 0.35, 1]} // Efeito nos 30% inferiores do effectHolder
+                    style={{ flex: 1 }}
+                  />
+                }
+              >
+                <BlurView
+                  style={StyleSheet.absoluteFill} // Camada de Blur (embaixo)
+                  intensity={20}
+                />
+                <View
+                  style={styles.fadedDarkBackground} // Camada de Fundo Escuro (meio)
+                />
+                <View style={styles.textContentWrapperOverEffects}>
+                  {/* Camada de Texto (em cima) */}
+                  <Text style={styles.itemTitulo}>{item.title_limit}</Text>
+                  <Text
+                    style={styles.itemResumo}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
+                    {item.subtitle}
+                  </Text>
+                  {item.posted_at && (
+                    <Text style={styles.itemData}>{item.posted_at}</Text>
+                  )}
+                </View>
+              </MaskedView>
+            </View>
+          </View>
+        </View>
       ) : (
-        <View style={[styles.itemImagem, styles.itemSemImagemFallback]}>
+        <View style={[styles.imageAreaBase, styles.itemSemImagemFallback]}>
           <View style={styles.itemConteudoTexto}>
             <Text style={styles.itemTitulo}>{item.title_limit}</Text>
             <Text
@@ -212,39 +229,41 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: "hidden",
   },
-  itemImagem: {
+  imageAreaBase: {
     width: "100%",
-    height: 280,
+    height: IMAGE_HEIGHT,
     backgroundColor: colors.neutral.light,
   },
-  itemSemImagemFallback: {
-    backgroundColor: colors.neutral.dark,
+  imageWrapper: {
+    width: "100%",
+    height: IMAGE_HEIGHT,
+  },
+  itemImagemExpo: {
+    width: "100%",
+    height: "100%",
+  },
+  overlayEffectHolderContainer: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
-    padding: 12,
   },
-  maskedViewArea: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: "70%",
+  effectHolder: {
+    width: "100%",
+    height: MASKED_VIEW_HEIGHT,
   },
-  blurContent: {
-    flex: 1,
+  fadedDarkBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
   },
-  textContentWrapper: {
-    flex: 1,
+  textContentWrapperOverEffects: {
+    // Renomeado para clareza, antigo textContentWrapper
+    ...StyleSheet.absoluteFillObject, // Garante que o texto se alinhe com as camadas abaixo
     justifyContent: "flex-end",
     paddingHorizontal: 15,
     paddingBottom: 15,
     paddingTop: 30,
+    // SEM backgroundColor aqui, para o fadedDarkBackground ser visível
   },
-  itemConteudo: {
-    flex: 1,
-  },
-  itemConteudoTexto: {
-    // Padding agora é tratado por textContentWrapper
-  },
+  itemConteudoTexto: {},
   itemTitulo: {
     fontSize: 20,
     fontWeight: "bold",
@@ -260,6 +279,11 @@ const styles = StyleSheet.create({
   itemData: {
     fontSize: 12,
     color: colors.text.secondary,
+  },
+  itemSemImagemFallback: {
+    backgroundColor: colors.neutral.dark,
+    justifyContent: "flex-end",
+    padding: 12,
   },
 });
 

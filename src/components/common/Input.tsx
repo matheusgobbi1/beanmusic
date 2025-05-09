@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    height: 48,
+    height: 52,
   },
   inputContainerFocused: {
     borderColor: colors.primary.main,
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.neutral.white,
     fontSize: 16,
-    paddingVertical: Platform.OS === "ios" ? 12 : 8,
+    paddingVertical: Platform.OS === "ios" ? 16 : 12,
     textAlignVertical: "center",
   },
   inputWithLeftIcon: {

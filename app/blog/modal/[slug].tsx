@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform, Text } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import ExibeNoticia from "../../../src/components/blog/ExibeNoticia"; // Ajuste o caminho conforme necessário
 import { SafeAreaView } from "react-native-safe-area-context";

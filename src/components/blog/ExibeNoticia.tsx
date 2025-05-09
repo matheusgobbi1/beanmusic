@@ -6,7 +6,9 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
+import RenderHTML from "react-native-render-html";
 import { blogAPI } from "../../services/api";
 import colors from "../../constants/colors";
 
@@ -29,6 +31,7 @@ function ExibeNoticia({ slug }: ExibeNoticiaProps): React.JSX.Element {
   const [noticia, setNoticia] = useState<NoticiaDetalhada | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
 
   useEffect(() => {
     async function carregarNoticia() {
@@ -135,12 +138,66 @@ function ExibeNoticia({ slug }: ExibeNoticiaProps): React.JSX.Element {
         <Text style={styles.data}>Publicado: {dataFormatada}</Text>
         {/* Para renderizar HTML do body_output, precisaremos de RenderHTML */}
         {/* Exemplo básico com Text, que NÃO renderizará HTML tags: */}
-        <Text style={styles.conteudo}>{noticia.body_output}</Text>
-        {/* <RenderHTML contentWidth={width} source={{ html: noticia.body_output }} /> */}
+        {/* <Text style={styles.conteudo}>{noticia.body_output}</Text> */}
+        {noticia.body_output ? (
+          <RenderHTML
+            contentWidth={width}
+            source={{ html: noticia.body_output }}
+            baseStyle={styles.htmlBaseStyle}
+            tagsStyles={tagsStyles}
+          />
+        ) : (
+          <Text style={styles.conteudo}>Conteúdo não disponível.</Text>
+        )}
       </View>
     </ScrollView>
   );
 }
+
+// Adicionado para estilizar o HTML
+const tagsStyles = {
+  p: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 12,
+    color: colors.text.primary, // Exemplo, ajuste conforme seu colors.ts
+  },
+  h1: {
+    fontSize: 28,
+    fontWeight: "bold" as "bold",
+    marginTop: 16,
+    marginBottom: 8,
+    color: colors.text.primary,
+  },
+  h2: {
+    fontSize: 24,
+    fontWeight: "bold" as "bold",
+    marginTop: 12,
+    marginBottom: 6,
+    color: colors.text.primary,
+  },
+  h3: {
+    fontSize: 20,
+    fontWeight: "bold" as "bold",
+    marginTop: 10,
+    marginBottom: 4,
+    color: colors.text.primary,
+  },
+  ul: {
+    marginBottom: 12,
+    marginLeft: 20, // Adiciona um recuo para listas
+  },
+  li: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.text.primary,
+    marginBottom: 6,
+  },
+  a: {
+    color: colors.primary.main, // Exemplo para links
+    textDecorationLine: "underline" as "underline",
+  },
+};
 
 const styles = StyleSheet.create({
   centeredContainer: {
@@ -173,13 +230,13 @@ const styles = StyleSheet.create({
   },
   imagem: {
     width: "100%",
-    height: 220,
+    height: 300,
     resizeMode: "cover",
     marginBottom: 16,
   },
   titulo: {
     fontSize: 22,
-    fontWeight: "bold",
+    fontWeight: "bold" as "bold",
     marginBottom: 8,
     color: colors.text.primary,
   },
@@ -199,6 +256,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text.secondary,
     marginBottom: 16,
+  },
+  htmlBaseStyle: {
+    color: colors.text.primary, // Cor de texto padrão para o HTML
+    fontSize: 16, // Tamanho de fonte padrão para o HTML
+    lineHeight: 24,
   },
   // autor não está presente na API, removido temporariamente
 });

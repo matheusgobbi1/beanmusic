@@ -213,6 +213,7 @@ export default function Login() {
               disabled={!isFormValid}
               icon="log-in-outline"
               iconPosition="right"
+              size="medium"
             />
           </View>
 

@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   logo: {
-    width: 30,
-    height: 25,
+    width: 55,
+    height: 50,
   },
 });
