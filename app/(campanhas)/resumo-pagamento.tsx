@@ -23,13 +23,15 @@ import { API_URL } from "@env";
 export default function ResumoPagamentoScreen() {
   const router = useRouter();
   const { state } = useCampanha();
-  const { selectedTrack, budget, targetOptions, observation, platform } = state;
+  const { selectedTrack, budget, targetOptions, observation, platform, coupon_name, discountedAmount } = state;
   const [loading, setLoading] = useState(false);
 
-  // Constantes para calcular valores
-  const subtotal = budget || 0;
-  const taxa = subtotal * 0.05; // 5% de taxa
-  const total = subtotal + taxa;
+  // Valor total considerando o desconto, se houver
+  const total = discountedAmount !== undefined ? discountedAmount : budget || 0;
+
+  // Log para verificar se o cupom foi passado corretamente
+  console.log("Cupom aplicado no resumo:", coupon_name);
+  console.log("Valor original:", budget, "Valor com desconto:", discountedAmount);
 
   // Função para obter o nome da música
   const getTrackName = () => {
@@ -89,15 +91,16 @@ export default function ResumoPagamentoScreen() {
         return;
       }
 
-      // Preparar os dados da campanha - Simplificando para corresponder ao exemplo anterior
+      // Preparar os dados da campanha - Agora incluindo o cupom se existir
       const requestData = {
-        budget: total, // Valor total com taxa
+        budget: total,
         platform,
         track_id: selectedTrack?.id,
         track_name: getTrackName(),
         artist_name: getArtistName(),
         target_options: targetOptions,
         observation,
+        coupon_name: state.coupon_name // Inclui o código do cupom se existir
       };
 
       // Chamada direta à API usando axios 
@@ -219,26 +222,30 @@ export default function ResumoPagamentoScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Resumo da Compra</Text>
             <View style={styles.summaryContainer}>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Subtotal</Text>
-                <Text style={styles.summaryValue}>
-                  R${" "}
-                  {subtotal.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
-                </Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Taxa de serviço (5%)</Text>
-                <Text style={styles.summaryValue}>
-                  R${" "}
-                  {taxa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </Text>
-              </View>
-
-              <View style={styles.divider} />
-
+              {coupon_name ? (
+                <View style={styles.couponInfo}>
+                  <Text style={styles.couponLabel}>Cupom aplicado:</Text>
+                  <Text style={styles.couponValue}>{coupon_name}</Text>
+                </View>
+              ) : null}
+              
+              {discountedAmount !== undefined && discountedAmount !== budget ? (
+                <>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Subtotal</Text>
+                    <Text style={styles.summaryValueStriked}>
+                      R$ {budget.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                  <View style={styles.savingsRow}>
+                    <Text style={styles.savingsLabel}>Desconto</Text>
+                    <Text style={styles.savingsValue}>
+                      R$ {(budget - discountedAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                </>
+              ) : null}
+              
               <View style={styles.summaryRowTotal}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>
@@ -376,25 +383,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
   },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  summaryValue: {
-    fontSize: 14,
-    color: colors.text.primary,
-    fontWeight: "500",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.ui.divider,
-    marginVertical: 12,
-  },
   summaryRowTotal: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -409,6 +397,57 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: colors.primary.main,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  summaryValueStriked: {
+    fontSize: 14,
+    color: colors.text.disabled,
+    textDecorationLine: "line-through",
+  },
+  savingsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  savingsLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  savingsValue: {
+    fontSize: 14,
+    color: colors.status.success.main,
+    fontWeight: "bold",
+  },
+  couponInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    padding: 10,
+    backgroundColor: colors.background.paper,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary.main,
+  },
+  couponLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: colors.text.primary,
+    marginRight: 8,
+  },
+  couponValue: {
+    fontSize: 14,
+    color: colors.primary.main,
+    fontWeight: "bold",
   },
   footer: {
     padding: 16,

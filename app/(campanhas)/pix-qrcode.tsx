@@ -21,10 +21,14 @@ function PixQRCodeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { state, resetCampaign } = useCampanha();
-  const { budget } = state;
+  const { budget, coupon_name, discountedAmount } = state;
 
-  // Valores para exibição
-  const total = budget ? budget * 1.05 : 0; // Adiciona 5% de taxa
+  // Valores para exibição - usar valor com desconto se disponível
+  const total = discountedAmount !== undefined ? discountedAmount : budget || 0;
+
+  // Log para verificar se o cupom foi passado corretamente
+  console.log("Cupom aplicado no PIX:", coupon_name);
+  console.log("Valor original:", budget, "Valor com desconto:", discountedAmount);
 
   // Obter os dados do QR code dos parâmetros da rota
   const qrCodeImage = params.qrCodeImage as string;
@@ -132,9 +136,39 @@ function PixQRCodeScreen() {
               Expira em <Text style={styles.timerText}>{formatTimeLeft()}</Text>
             </Text>
 
-            <Text style={styles.amountText}>
-              R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </Text>
+            {discountedAmount !== undefined && discountedAmount !== budget ? (
+              <View style={styles.discountContainer}>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Subtotal:</Text>
+                  <Text style={styles.originalAmount}>
+                    R$ {budget.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Desconto:</Text>
+                  <Text style={styles.discountAmount}>
+                    -R$ {(budget - discountedAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabelTotal}>Total:</Text>
+                  <Text style={styles.amountText}>
+                    R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.amountText}>
+                R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </Text>
+            )}
+            
+            {coupon_name && (
+              <View style={styles.couponBadge}>
+                <Ionicons name="pricetag-outline" size={14} color={colors.text.onDark} />
+                <Text style={styles.couponBadgeText}>Cupom {coupon_name} aplicado</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.instructions}>
@@ -262,10 +296,55 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: colors.status.error.main,
   },
-  amountText: {
-    fontSize: 24,
+  discountContainer: {
+    alignItems: "center",
+    width: "100%",
+    marginVertical: 12,
+  },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "80%",
+    marginBottom: 4,
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  priceLabelTotal: {
+    fontSize: 16,
     fontWeight: "bold",
     color: colors.text.primary,
+  },
+  originalAmount: {
+    fontSize: 14,
+    color: colors.text.disabled,
+    textDecorationLine: "line-through",
+  },
+  discountAmount: {
+    fontSize: 14,
+    color: colors.status.success.main,
+    fontWeight: "bold",
+  },
+  amountText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.text.primary,
+  },
+  couponBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primary.main,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 12,
+  },
+  couponBadgeText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: colors.text.onDark,
+    marginLeft: 4,
   },
   instructions: {
     backgroundColor: colors.background.paper,

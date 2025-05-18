@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
@@ -14,6 +15,7 @@ import { blogAPI } from "../../services/api";
 import colors from "../../constants/colors";
 import { router } from "expo-router";
 import NoticiaSkeleton from "./NoticiaSkeleton";
+import { useQuery } from "@tanstack/react-query";
 
 // Interface ajustada para corresponder à API de beanmusicpromotion.com/api/v1/blog
 interface NoticiaResumo {
@@ -26,6 +28,7 @@ interface NoticiaResumo {
   // body_output é null, então não incluímos a menos que necessário
 }
 
+const ITENS_POR_PAGINA = 5;
 const imagePlaceholder = colors.neutral.medium; // Placeholder para expo-image
 const IMAGE_HEIGHT = 280;
 const MASKED_VIEW_HEIGHT = IMAGE_HEIGHT * 0.6; // 60% da altura da imagem para a área de efeito
@@ -40,9 +43,6 @@ const renderNoticiaItem = ({ item }: { item: NoticiaResumo }) => {
         "[FeedNoticias] Slug não encontrado para o item:",
         item.title_limit
       );
-      // Alternativamente, poderia navegar usando item.show se for uma URL web externa
-      // import { Linking } from 'react-native';
-      // Linking.openURL(item.show);
     }
   };
 
@@ -116,40 +116,78 @@ const renderNoticiaItem = ({ item }: { item: NoticiaResumo }) => {
 };
 
 function FeedNoticias(): React.JSX.Element {
-  const [noticias, setNoticias] = useState<NoticiaResumo[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [noticiasMostradas, setNoticiasMostradas] = useState<NoticiaResumo[]>([]);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [todasCarregadas, setTodasCarregadas] = useState(false);
 
-  useEffect(() => {
-    async function carregarFeed() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        // A API retorna um objeto { data: [...] }
-        const respostaApi = await blogAPI.getTodasNoticias();
-
-        if (respostaApi && Array.isArray(respostaApi.data)) {
-          setNoticias(respostaApi.data as NoticiaResumo[]);
-        } else {
-          console.warn(
-            "[FeedNoticias] Formato de dados inesperado da API ou 'data' não é um array:",
-            respostaApi
-          );
-          setNoticias([]);
-        }
-      } catch (err) {
-        console.error(
-          "[FeedNoticias] Erro ao carregar o feed de notícias:",
-          err
-        );
-        setError("Falha ao carregar o feed. Tente novamente mais tarde.");
-      } finally {
-        setIsLoading(false);
+  // Usando React Query para gerenciar o estado e as requisições
+  const { 
+    data: todasNoticias, 
+    isLoading, 
+    error 
+  } = useQuery({
+    queryKey: ['blogFeed'],
+    queryFn: async () => {
+      const respostaApi = await blogAPI.getTodasNoticias();
+      
+      if (respostaApi && Array.isArray(respostaApi.data)) {
+        return respostaApi.data as NoticiaResumo[];
       }
-    }
+      
+      console.warn(
+        "[FeedNoticias] Formato de dados inesperado da API ou 'data' não é um array:",
+        respostaApi
+      );
+      return [];
+    },
+    staleTime: 15 * 60 * 1000, // 15 minutos de cache
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
+  });
 
-    carregarFeed();
-  }, []);
+  // Efeito para carregar as primeiras notícias quando os dados estiverem disponíveis
+  React.useEffect(() => {
+    if (todasNoticias && todasNoticias.length > 0 && noticiasMostradas.length === 0) {
+      const primeirasNoticias = todasNoticias.slice(0, ITENS_POR_PAGINA);
+      setNoticiasMostradas(primeirasNoticias);
+      setTodasCarregadas(primeirasNoticias.length >= todasNoticias.length);
+    }
+  }, [todasNoticias]);
+
+  const carregarMaisNoticias = () => {
+    if (carregandoMais || todasCarregadas || !todasNoticias) return;
+
+    setCarregandoMais(true);
+    
+    const proximaPagina = paginaAtual + 1;
+    const inicio = (proximaPagina - 1) * ITENS_POR_PAGINA;
+    const fim = inicio + ITENS_POR_PAGINA;
+    
+    // Simula uma pequena latência para mostrar o indicador de carregamento
+    setTimeout(() => {
+      const novasNoticias = todasNoticias.slice(inicio, fim);
+      
+      if (novasNoticias.length > 0) {
+        setNoticiasMostradas([...noticiasMostradas, ...novasNoticias]);
+        setPaginaAtual(proximaPagina);
+      }
+      
+      setTodasCarregadas(fim >= todasNoticias.length);
+      setCarregandoMais(false);
+    }, 500);
+  };
+
+  const renderFooter = () => {
+    if (!carregandoMais) return null;
+    
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={colors.primary.main} />
+        <Text style={styles.carregandoText}>Carregando mais notícias...</Text>
+      </View>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -168,12 +206,12 @@ function FeedNoticias(): React.JSX.Element {
   if (error) {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>Falha ao carregar o feed. Tente novamente mais tarde.</Text>
       </View>
     );
   }
 
-  if (noticias.length === 0) {
+  if (!noticiasMostradas || noticiasMostradas.length === 0) {
     return (
       <View style={styles.centeredContainer}>
         <Text style={styles.statusText}>Nenhuma notícia encontrada.</Text>
@@ -183,10 +221,16 @@ function FeedNoticias(): React.JSX.Element {
 
   return (
     <FlatList
-      data={noticias}
+      data={noticiasMostradas}
       renderItem={renderNoticiaItem}
       keyExtractor={(item) => item.slug}
       contentContainerStyle={styles.listContainer}
+      initialNumToRender={ITENS_POR_PAGINA}
+      maxToRenderPerBatch={ITENS_POR_PAGINA}
+      windowSize={5}
+      onEndReached={carregarMaisNoticias}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={renderFooter}
     />
   );
 }
@@ -285,6 +329,17 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     padding: 12,
   },
+  footerLoader: {
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  carregandoText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: colors.text.secondary,
+  }
 });
 
 export default FeedNoticias;

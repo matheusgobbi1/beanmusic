@@ -8,20 +8,23 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "API_URL": "https://beanmusicpromotion.com/api/v1"
-      }
+        "API_URL": "https://alive-civet-aware.ngrok-free.app/api/v1"
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "API_URL": "https://beanmusicpromotion.com/api/v1"
-      }
+        "API_URL": "https://alive-civet-aware.ngrok-free.app/api/v1"
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "API_URL": "https://beanmusicpromotion.com/api/v1"
-      }
+        "API_URL": "https://alive-civet-aware.ngrok-free.app/api/v1"
+      },
+      "channel": "production"
     }
   },
   "submit": {

@@ -1,15 +1,19 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Button from "../common/Button";
+import Input from "../common/Input";
 import colors from "../../constants/colors";
+import api from "../../services/api";
 
 // Tipos de métodos de pagamento
 export type PaymentMethod = "credit_card" | "pix" | "boleto" | null;
@@ -19,6 +23,14 @@ interface PaymentOption {
   label: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   description: string;
+}
+
+// Interface para dados do cupom
+interface CouponData {
+  code: string;
+  type: 'fixed' | 'percent';
+  value: number;
+  isValid: boolean;
 }
 
 // Opções de pagamento disponíveis
@@ -47,8 +59,8 @@ interface PaymentScreenProps {
   amount: number;
   title: string;
   description: string;
-  onPaymentComplete: (paymentMethod: Exclude<PaymentMethod, null>) => void;
-  onPixSelected?: () => void;
+  onPaymentComplete: (paymentMethod: Exclude<PaymentMethod, null>, discountedAmount?: number, couponCode?: string) => void;
+  onPixSelected?: (discountedAmount?: number, couponCode?: string) => void;
 }
 
 /**
@@ -62,13 +74,91 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   onPixSelected,
 }) => {
   const router = useRouter();
-  const [selectedMethod, setSelectedMethod] =
-    React.useState<PaymentMethod>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponData, setCouponData] = useState<CouponData | null>(null);
+  const [verifyingCoupon, setVerifyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState("");
+
+  // Calcula o valor final após aplicar o desconto do cupom
+  const calculateFinalAmount = () => {
+    if (!couponData?.isValid) {
+      return amount;
+    }
+
+    if (couponData.type === 'fixed') {
+      // Desconto de valor fixo
+      return Math.max(0, amount - couponData.value);
+    } else {
+      // Desconto percentual
+      return amount - (amount * (couponData.value / 100));
+    }
+  };
+
+  const finalAmount = calculateFinalAmount();
+
+  // Formata a exibição do desconto baseado no tipo
+  const getDiscountText = () => {
+    if (!couponData?.isValid) return "";
+    
+    if (couponData.type === 'fixed') {
+      return `R$ ${couponData.value.toFixed(2)}`;
+    } else {
+      return `${couponData.value}%`;
+    }
+  };
 
   // Manipula o processo de pagamento
   const handlePayment = () => {
     if (selectedMethod) {
-      onPaymentComplete(selectedMethod);
+      onPaymentComplete(
+        selectedMethod, 
+        couponData?.isValid ? finalAmount : undefined,
+        couponData?.isValid ? couponCode : undefined
+      );
+    }
+  };
+
+  // Verifica o cupom na API
+  const verifyCoupon = async () => {
+    // Se o código do cupom estiver vazio, limpa os dados e sai da função
+    if (!couponCode.trim()) {
+      setCouponError("Digite um código de cupom");
+      return;
+    }
+
+    try {
+      setVerifyingCoupon(true);
+      setCouponError("");
+
+      // Usando "Campanhas" como o serviço
+      const response = await api.get(`/coupon/verify?service=Campanhas&q=${encodeURIComponent(couponCode.trim())}`);
+      
+      console.log("Resposta da verificação:", response.data);
+      
+      if (response.data && response.data.authorize) {
+        // Determina o tipo e valor do cupom
+        const couponType = response.data.type || 'percent';
+        const couponValue = response.data.value || 0;
+        
+        setCouponData({
+          code: couponCode,
+          type: couponType,
+          value: couponValue,
+          isValid: true
+        });
+        
+        // Removido o Alert de cupom aplicado para melhorar a experiência do usuário
+      } else {
+        setCouponError("Cupom inválido ou expirado");
+        setCouponData(null);
+      }
+    } catch (error) {
+      console.error("Erro ao verificar cupom:", error);
+      setCouponError("Erro ao verificar o cupom. Tente novamente.");
+      setCouponData(null);
+    } finally {
+      setVerifyingCoupon(false);
     }
   };
 
@@ -76,10 +166,22 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   const handlePaymentOptionClick = (method: PaymentMethod) => {
     setSelectedMethod(method);
 
-    // Se for PIX e tiver um callback, navega para tela de resumo
+    // Se for PIX, navega diretamente para a tela de resumo
     if (method === "pix" && onPixSelected) {
-      onPixSelected();
+      // Passa informações do cupom para o componente pai
+      if (couponData?.isValid) {
+        onPixSelected(finalAmount, couponCode);
+      } else {
+        onPixSelected();
+      }
     }
+  };
+
+  // Limpa o cupom aplicado
+  const clearCoupon = () => {
+    setCouponCode("");
+    setCouponData(null);
+    setCouponError("");
   };
 
   return (
@@ -94,9 +196,57 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
         {/* Valor do pagamento */}
         <View style={styles.amountContainer}>
           <Text style={styles.amountLabel}>Valor Total</Text>
-          <Text style={styles.amountValue}>
-            R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </Text>
+          {couponData?.isValid ? (
+            <>
+              <Text style={styles.amountOriginal}>
+                R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </Text>
+              <Text style={styles.amountValue}>
+                R$ {finalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </Text>
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountText}>
+                  {getDiscountText()} OFF
+                </Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.amountValue}>
+              R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </Text>
+          )}
+        </View>
+
+        {/* Campo de cupom */}
+        <View style={styles.couponSection}>
+          <Text style={styles.couponTitle}>Tem um cupom de desconto?</Text>
+          <View style={styles.couponInputContainer}>
+            <Input
+              value={couponCode}
+              onChangeText={(text) => {
+                setCouponCode(text);
+                if (couponError) setCouponError("");
+              }}
+              placeholder="Digite o código do cupom"
+              error={couponError}
+              rightIcon={couponData?.isValid ? "checkmark-circle" : "pricetag-outline"}
+              onRightIconPress={couponData?.isValid ? clearCoupon : verifyCoupon}
+              disabled={verifyingCoupon || couponData?.isValid}
+              style={styles.couponInput}
+            />
+            {verifyingCoupon && (
+              <ActivityIndicator 
+                size="small" 
+                color={colors.primary.main} 
+                style={styles.couponLoader} 
+              />
+            )}
+          </View>
+          {!couponData?.isValid && !couponError && !verifyingCoupon && (
+            <TouchableOpacity onPress={verifyCoupon} style={styles.applyCouponButton}>
+              <Text style={styles.applyCouponText}>Aplicar Cupom</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Opções de pagamento */}
@@ -145,18 +295,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
           </Text>
         </View>
       </ScrollView>
-
-      {/* Footer com botão de pagamento */}
-      <View style={styles.footer}>
-        <Button
-          title="Pagar Agora"
-          onPress={handlePayment}
-          disabled={!selectedMethod}
-          variant="primary"
-          size="large"
-          fullWidth
-        />
-      </View>
     </View>
   );
 };
@@ -190,6 +328,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     alignItems: "center",
+    position: "relative",
   },
   amountLabel: {
     fontSize: 14,
@@ -200,6 +339,55 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     color: colors.primary.main,
+  },
+  amountOriginal: {
+    fontSize: 16,
+    color: colors.text.disabled,
+    textDecorationLine: "line-through",
+    marginBottom: 4,
+  },
+  discountBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: colors.status.success.main,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  discountText: {
+    color: colors.text.onDark,
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  couponSection: {
+    marginBottom: 24,
+  },
+  couponTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.text.primary,
+    marginBottom: 12,
+  },
+  couponInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  couponInput: {
+    flex: 1,
+  },
+  couponLoader: {
+    position: "absolute",
+    right: 40,
+  },
+  applyCouponButton: {
+    alignSelf: "flex-end",
+    marginTop: 8,
+  },
+  applyCouponText: {
+    color: colors.primary.main,
+    fontWeight: "bold",
+    fontSize: 14,
   },
   paymentOptions: {
     marginBottom: 24,
@@ -250,12 +438,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 12,
     color: colors.text.disabled,
-  },
-  footer: {
-    padding: 16,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.light,
   },
 });
 

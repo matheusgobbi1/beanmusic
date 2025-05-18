@@ -4,6 +4,18 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import ExibeNoticia from "../../../src/components/blog/ExibeNoticia"; // Ajuste o caminho conforme necessário
 import { SafeAreaView } from "react-native-safe-area-context";
 import colors from "../../../src/constants/colors"; // Ajuste o caminho conforme necessário
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Criando uma instância do QueryClient - poderia ser compartilhado em um provider global
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 10 * 60 * 1000, // 10 minutos
+      gcTime: 60 * 60 * 1000,    // 1 hora
+      retry: 1,
+    },
+  },
+});
 
 export default function NoticiaModalScreen(): React.JSX.Element {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -25,20 +37,22 @@ export default function NoticiaModalScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
-      <Stack.Screen
-        options={{
-          title: screenTitle,
-          presentation: "modal",
-          animation: "slide_from_bottom",
-          headerShown: false,
-          gestureEnabled: true,
-        }}
-      />
-      <View style={styles.container}>
-        <ExibeNoticia slug={slug} />
-      </View>
-    </SafeAreaView>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
+        <Stack.Screen
+          options={{
+            title: screenTitle,
+            presentation: "modal",
+            animation: "slide_from_bottom",
+            headerShown: false,
+            gestureEnabled: true,
+          }}
+        />
+        <View style={styles.container}>
+          <ExibeNoticia slug={slug} />
+        </View>
+      </SafeAreaView>
+    </QueryClientProvider>
   );
 }
 

@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  Image,
   ScrollView,
   useWindowDimensions,
 } from "react-native";
-import RenderHTML from "react-native-render-html";
+import { Image } from "expo-image";
+import RenderHTML, { defaultSystemFonts } from "react-native-render-html";
 import { blogAPI } from "../../services/api";
 import colors from "../../constants/colors";
+import { useQuery } from "@tanstack/react-query";
 
 // Interface ajustada para corresponder à API de beanmusicpromotion.com/api/v1/blog/slug
 interface NoticiaDetalhada {
@@ -27,63 +28,52 @@ interface ExibeNoticiaProps {
   slug: string;
 }
 
+const imagePlaceholder = colors.neutral.medium;
+
 function ExibeNoticia({ slug }: ExibeNoticiaProps): React.JSX.Element {
-  const [noticia, setNoticia] = useState<NoticiaDetalhada | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const { width } = useWindowDimensions();
-
-  useEffect(() => {
-    async function carregarNoticia() {
+  const systemFonts = [...defaultSystemFonts, 'Arial', 'Roboto', 'sans-serif'];
+  
+  // Usando React Query para gerenciar o estado e as requisições
+  const { 
+    data: noticia, 
+    isLoading, 
+    error 
+  } = useQuery({
+    queryKey: ['noticia', slug],
+    queryFn: async (): Promise<NoticiaDetalhada> => {
       if (!slug) {
-        setError("Slug da notícia não fornecido.");
-        setIsLoading(false);
-        setNoticia(null);
-        return;
+        throw new Error("Slug da notícia não fornecido.");
       }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-        setNoticia(null);
-        // A API retorna um objeto { data: { ...noticiaFields } }
-        const respostaApi = await blogAPI.getNoticiaBySlug(slug);
-
-        if (respostaApi && respostaApi.data) {
-          // Mapeia os campos da API para a nossa interface NoticiaDetalhada
-          const dadosMapeados: NoticiaDetalhada = {
-            title_limit: respostaApi.data.title_limit,
-            subtitle: respostaApi.data.subtitle,
-            slug: respostaApi.data.slug,
-            posted_at: respostaApi.data.posted_at,
-            show: respostaApi.data.show,
-            image: respostaApi.data.image,
-            body_output: respostaApi.data.body_output,
-          };
-          setNoticia(dadosMapeados);
-        } else {
-          console.warn(
-            `[ExibeNoticia] Formato de dados inesperado da API para o slug '${slug}':`,
-            respostaApi
-          );
-          setError("Formato de dados inválido recebido da API.");
-          setNoticia(null);
-        }
-      } catch (err) {
-        console.error(
-          `[ExibeNoticia] Erro ao carregar notícia com slug '${slug}':`,
-          err
-        );
-        setError(
-          "Falha ao carregar a notícia. Verifique o console para mais detalhes ou tente novamente mais tarde."
-        );
-      } finally {
-        setIsLoading(false);
+      
+      const respostaApi = await blogAPI.getNoticiaBySlug(slug);
+      
+      if (respostaApi && respostaApi.data) {
+        // Mapeia os campos da API para a nossa interface NoticiaDetalhada
+        const result: NoticiaDetalhada = {
+          title_limit: respostaApi.data.title_limit,
+          subtitle: respostaApi.data.subtitle,
+          slug: respostaApi.data.slug,
+          posted_at: respostaApi.data.posted_at,
+          show: respostaApi.data.show,
+          image: respostaApi.data.image,
+          body_output: respostaApi.data.body_output,
+        };
+        return result;
       }
-    }
-
-    carregarNoticia();
-  }, [slug]);
+      
+      console.warn(
+        `[ExibeNoticia] Formato de dados inesperado da API para o slug '${slug}':`,
+        respostaApi
+      );
+      throw new Error("Formato de dados inválido recebido da API.");
+    },
+    enabled: !!slug,
+    staleTime: 30 * 60 * 1000, // 30 minutos de cache
+    gcTime: 60 * 60 * 1000, // 1 hora de retenção em cache
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
+  });
 
   if (isLoading) {
     return (
@@ -97,7 +87,9 @@ function ExibeNoticia({ slug }: ExibeNoticiaProps): React.JSX.Element {
   if (error) {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>
+          Falha ao carregar a notícia. Tente novamente mais tarde.
+        </Text>
       </View>
     );
   }
@@ -122,13 +114,29 @@ function ExibeNoticia({ slug }: ExibeNoticiaProps): React.JSX.Element {
   //   });
   // } catch (e) { /* mantém o valor original se falhar */ }
 
+  const renderersProps = {
+    ul: {
+      enableExperimentalRtl: true,
+    },
+    ol: {
+      enableExperimentalRtl: true,
+    },
+  };
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainerScroll}
     >
       {noticia.image && (
-        <Image source={{ uri: noticia.image }} style={styles.imagem} />
+        <Image 
+          source={{ uri: noticia.image }} 
+          style={styles.imagem}
+          placeholder={imagePlaceholder}
+          transition={300}
+          cachePolicy="memory-disk"
+          contentFit="cover"
+        />
       )}
       <View style={styles.textWrapper}>
         <Text style={styles.titulo}>{noticia.title_limit}</Text>
@@ -136,15 +144,15 @@ function ExibeNoticia({ slug }: ExibeNoticiaProps): React.JSX.Element {
           <Text style={styles.subtitulo}>{noticia.subtitle}</Text>
         )}
         <Text style={styles.data}>Publicado: {dataFormatada}</Text>
-        {/* Para renderizar HTML do body_output, precisaremos de RenderHTML */}
-        {/* Exemplo básico com Text, que NÃO renderizará HTML tags: */}
-        {/* <Text style={styles.conteudo}>{noticia.body_output}</Text> */}
         {noticia.body_output ? (
           <RenderHTML
             contentWidth={width}
             source={{ html: noticia.body_output }}
             baseStyle={styles.htmlBaseStyle}
             tagsStyles={tagsStyles}
+            systemFonts={systemFonts}
+            renderersProps={renderersProps}
+            enableExperimentalMarginCollapsing
           />
         ) : (
           <Text style={styles.conteudo}>Conteúdo não disponível.</Text>
@@ -217,6 +225,7 @@ const styles = StyleSheet.create({
   textWrapper: {
     paddingHorizontal: 16,
     paddingBottom: 16,
+    marginTop: 16,
   },
   statusText: {
     marginTop: 10,
@@ -231,8 +240,7 @@ const styles = StyleSheet.create({
   imagem: {
     width: "100%",
     height: 300,
-    resizeMode: "cover",
-    marginBottom: 16,
+    backgroundColor: colors.neutral.light,
   },
   titulo: {
     fontSize: 22,

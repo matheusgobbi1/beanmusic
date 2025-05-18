@@ -17,6 +17,15 @@ interface ApiErrorResponse {
   statusCode?: number;
 }
 
+// Interface para resposta da verificação de cupom
+export interface CouponVerifyResponse {
+  authorize: boolean; // API retorna "authorize" em vez de "isValid"
+  type?: 'fixed' | 'percent'; // Tipo de desconto: fixed (valor fixo) ou percent (percentual)
+  value?: number; // Valor do desconto (fixo ou percentual)
+  code?: string; // Campo opcional se a API retornar
+  message?: string; // Campo opcional se a API retornar
+}
+
 // Crie a instância do axios
 const api = axios.create({
   baseURL: API_URL,
@@ -93,6 +102,38 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Funções relacionadas a cupons
+export const couponsAPI = {
+  // Verificar um código de cupom
+  verifyCoupon: async (code: string): Promise<CouponVerifyResponse> => {
+    try {
+      console.log(`[API] Verificando cupom: ${code}`);
+      // Usando "Campanhas" como o serviço
+      const response = await api.get(`/coupon/verify?service=Campanhas&q=${encodeURIComponent(code)}`);
+      
+      // Log detalhado da resposta
+      console.log(`[API] Resposta da verificação do cupom:`, JSON.stringify(response.data, null, 2));
+      
+      // Log detalhado dos campos específicos
+      if (response.data) {
+        console.log(`[API] Detalhes do cupom:`);
+        console.log(`- Válido: ${response.data.authorize}`);
+        console.log(`- Tipo: ${response.data.type} (${response.data.type === 'fixed' ? 'Valor fixo' : 'Percentual'})`);
+        console.log(`- Valor: ${response.data.value}${response.data.type === 'percent' ? '%' : ' BRL'}`);
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error(`[API] Erro ao verificar cupom: ${code}`, error);
+      // Retorna objeto de erro formatado para facilitar tratamento
+      return {
+        authorize: false,
+        message: "Erro ao verificar cupom. Tente novamente.",
+      };
+    }
+  },
+};
 
 // Funções relacionadas às campanhas
 export const campanhasAPI = {

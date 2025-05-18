@@ -11,7 +11,9 @@ type ActionType =
   | { type: "SET_TARGET_OPTIONS"; payload: TargetOptions }
   | { type: "SET_BUDGET"; payload: number }
   | { type: "RESET_CAMPAIGN" }
-  | { type: "SET_OBSERVATION"; payload: string };
+  | { type: "SET_OBSERVATION"; payload: string }
+  | { type: "SET_COUPON_NAME"; payload: string }
+  | { type: "SET_DISCOUNTED_AMOUNT"; payload: number };
 
 // Interface para opções de segmentação
 export interface TargetOptions {
@@ -29,6 +31,8 @@ export interface CampanhaState {
   budget: number;
   observation: string;
   totalSteps: number;
+  coupon_name?: string; // Código do cupom aplicado
+  discountedAmount?: number; // Valor após aplicação do desconto
 }
 
 // Estado inicial
@@ -44,6 +48,8 @@ const initialState: CampanhaState = {
   budget: 0,
   observation: "",
   totalSteps: 5, // Total de etapas no fluxo
+  coupon_name: "", // Inicialmente vazio
+  discountedAmount: undefined, // Inicialmente sem desconto
 };
 
 // Reducer para gerenciar o estado
@@ -67,6 +73,10 @@ const campanhaReducer = (
       return { ...state, budget: action.payload };
     case "SET_OBSERVATION":
       return { ...state, observation: action.payload };
+    case "SET_COUPON_NAME":
+      return { ...state, coupon_name: action.payload };
+    case "SET_DISCOUNTED_AMOUNT":
+      return { ...state, discountedAmount: action.payload };
     case "RESET_CAMPAIGN":
       return initialState;
     default:
@@ -85,6 +95,8 @@ interface CampanhaContextProps {
   setTargetOptions: (options: Partial<TargetOptions>) => void;
   setBudget: (budget: number) => void;
   setObservation: (observation: string) => void;
+  setCouponName: (couponName: string) => void;
+  setDiscountedAmount: (amount: number) => void;
   resetCampaign: () => void;
 }
 
@@ -144,6 +156,16 @@ export const CampanhaProvider: React.FC<{ children: React.ReactNode }> = ({
     dispatch({ type: "SET_OBSERVATION", payload: observation });
   };
 
+  // Função para definir o código do cupom
+  const setCouponName = (couponName: string) => {
+    dispatch({ type: "SET_COUPON_NAME", payload: couponName });
+  };
+
+  // Função para definir o valor com desconto
+  const setDiscountedAmount = (amount: number) => {
+    dispatch({ type: "SET_DISCOUNTED_AMOUNT", payload: amount });
+  };
+
   // Função para resetar a campanha
   const resetCampaign = () => {
     dispatch({ type: "RESET_CAMPAIGN" });
@@ -161,6 +183,8 @@ export const CampanhaProvider: React.FC<{ children: React.ReactNode }> = ({
         setTargetOptions,
         setBudget,
         setObservation,
+        setCouponName,
+        setDiscountedAmount,
         resetCampaign,
       }}
     >
